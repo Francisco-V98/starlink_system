@@ -4,11 +4,13 @@ class ClientGroup {
   final String email;
   final String alias;
   final List<User> users;
+  final String? adminId; // ID of the admin who owns this group
 
   ClientGroup({
     required this.email,
     required this.alias,
     required this.users,
+    this.adminId,
   });
 
   factory ClientGroup.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class ClientGroup {
               ?.map((e) => User.fromJson(e))
               .toList() ??
           [],
+      adminId: json['adminId'],
     );
   }
 
@@ -27,6 +30,7 @@ class ClientGroup {
       'email': email,
       'alias': alias,
       'users': users.map((e) => e.toJson()).toList(),
+      'adminId': adminId,
     };
   }
 
@@ -34,11 +38,13 @@ class ClientGroup {
     String? email,
     String? alias,
     List<User>? users,
+    String? adminId,
   }) {
     return ClientGroup(
       email: email ?? this.email,
       alias: alias ?? this.alias,
       users: users ?? this.users,
+      adminId: adminId ?? this.adminId,
     );
   }
 }

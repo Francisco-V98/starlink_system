@@ -3,25 +3,39 @@ import '../models/client_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final String _collection = 'client_groups';
 
-  // Get all client groups
-  Stream<List<ClientGroup>> getClientGroups() {
-    return _db.collection(_collection).snapshots().map((snapshot) {
+  // Get all client groups for a specific admin
+  Stream<List<ClientGroup>> getClientGroups(String adminId) {
+    return _db
+        .collection('admins')
+        .doc(adminId)
+        .collection('client_groups')
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.map((doc) {
         return ClientGroup.fromJson(doc.data());
       }).toList();
     });
   }
 
-  // Save or Update a ClientGroup
-  Future<void> saveClientGroup(ClientGroup group) async {
-    // We use the email as the document ID to ensure uniqueness per email group
-    await _db.collection(_collection).doc(group.email).set(group.toJson());
+  // Save or Update a ClientGroup for a specific admin
+  Future<void> saveClientGroup(String adminId, ClientGroup group) async {
+    // We use the email as the document ID to ensure uniqueness per email group within the admin's scope
+    await _db
+        .collection('admins')
+        .doc(adminId)
+        .collection('client_groups')
+        .doc(group.email)
+        .set(group.toJson());
   }
 
-  // Delete a ClientGroup
-  Future<void> deleteClientGroup(String email) async {
-    await _db.collection(_collection).doc(email).delete();
+  // Delete a ClientGroup for a specific admin
+  Future<void> deleteClientGroup(String adminId, String email) async {
+    await _db
+        .collection('admins')
+        .doc(adminId)
+        .collection('client_groups')
+        .doc(email)
+        .delete();
   }
 }
