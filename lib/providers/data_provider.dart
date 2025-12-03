@@ -72,9 +72,30 @@ class DataProvider extends ChangeNotifier {
     required String antennaSerial,
     required int paymentStartDay,
     required int paymentEndDay,
+    DateTime? serviceStartDate,
     bool isNewEmail = false,
   }) async {
     if (_currentUserId == null) return;
+
+    final Map<String, String> initialPayments = {};
+
+    // Auto-fill payments if service start date is provided
+    if (serviceStartDate != null) {
+      final now = DateTime.now();
+      // Start from the service start date
+      DateTime iterator = DateTime(serviceStartDate.year, serviceStartDate.month);
+      // End at the current month
+      final end = DateTime(now.year, now.month);
+
+      while (iterator.isBefore(end) || iterator.isAtSameMomentAs(end)) {
+        final monthKey = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+        // Mark as paid with the current date as the recording date
+        initialPayments[monthKey] = DateTime.now().toIso8601String();
+        
+        // Move to next month
+        iterator = DateTime(iterator.year, iterator.month + 1);
+      }
+    }
 
     final newUser = User(
       id: DateTime.now().millisecondsSinceEpoch,
@@ -85,7 +106,8 @@ class DataProvider extends ChangeNotifier {
       antennaSerial: antennaSerial,
       paymentStartDay: paymentStartDay,
       paymentEndDay: paymentEndDay,
-      payments: {},
+      payments: initialPayments,
+      serviceStartDate: serviceStartDate,
     );
 
     if (isNewEmail) {
@@ -138,10 +160,55 @@ class DataProvider extends ChangeNotifier {
     final user = group.users[userIndex];
     
     final newPayments = Map<String, String>.from(user.payments);
+    
     if (date == null) {
+      // Unmarking as paid
       newPayments.remove(month);
     } else {
+      // Marking as paid
       newPayments[month] = date;
+
+      // Auto-fill logic: Fill gaps between the last paid month and this new month
+      try {
+        final targetDateParts = month.split('-');
+        final targetYear = int.parse(targetDateParts[0]);
+        final targetMonth = int.parse(targetDateParts[1]);
+        final targetDateTime = DateTime(targetYear, targetMonth);
+
+        // Find the latest paid month before the target date
+        DateTime? latestPaidDate;
+        
+        // Sort existing keys to find the latest one before target
+        final sortedKeys = user.payments.keys.toList()..sort();
+        
+        for (final key in sortedKeys.reversed) {
+          final parts = key.split('-');
+          final year = int.parse(parts[0]);
+          final m = int.parse(parts[1]);
+          final d = DateTime(year, m);
+          
+          if (d.isBefore(targetDateTime)) {
+            latestPaidDate = d;
+            break;
+          }
+        }
+
+        // If we found a previous payment, fill the gap
+        if (latestPaidDate != null) {
+          DateTime iterator = DateTime(latestPaidDate.year, latestPaidDate.month + 1);
+          
+          while (iterator.isBefore(targetDateTime)) {
+            final gapKey = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+            // Only fill if not already paid (though logic suggests it shouldn't be, but safety first)
+            if (!newPayments.containsKey(gapKey)) {
+              newPayments[gapKey] = date; // Use the same payment date
+            }
+            iterator = DateTime(iterator.year, iterator.month + 1);
+          }
+        }
+      } catch (e) {
+        print("Error in auto-fill logic: $e");
+      }
     }
 
     final updatedUser = user.copyWith(payments: newPayments);

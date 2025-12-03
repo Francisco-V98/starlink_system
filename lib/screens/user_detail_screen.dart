@@ -484,11 +484,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               children: [
                 IconButton(
                   icon: const Icon(LucideIcons.chevronLeft),
-                  onPressed: () {
-                    setState(() {
-                      _currentYear--;
-                    });
-                  },
+                  onPressed: _currentYear > (currentUser.serviceStartDate?.year ?? 2020)
+                      ? () {
+                          setState(() {
+                            _currentYear--;
+                          });
+                        }
+                      : null,
+                  color: _currentYear > (currentUser.serviceStartDate?.year ?? 2020)
+                      ? Colors.black
+                      : Colors.grey.shade300,
                 ),
                 const SizedBox(width: 20),
                 Text(
@@ -502,11 +507,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 const SizedBox(width: 20),
                 IconButton(
                   icon: const Icon(LucideIcons.chevronRight),
-                  onPressed: () {
-                    setState(() {
-                      _currentYear++;
-                    });
-                  },
+                  onPressed: _currentYear < (DateTime.now().year + 2)
+                      ? () {
+                          setState(() {
+                            _currentYear++;
+                          });
+                        }
+                      : null,
+                  color: _currentYear < (DateTime.now().year + 2)
+                      ? Colors.black
+                      : Colors.grey.shade300,
                 ),
               ],
             ),
@@ -532,12 +542,25 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   itemCount: months.length,
                   itemBuilder: (ctx, index) {
                     final month = months[index];
-                    final monthKey = monthsShort[index];
+                    final monthNumber = index + 1;
+                    final monthKey = "$_currentYear-${monthNumber.toString().padLeft(2, '0')}";
                     final paymentDate = currentUser.payments[monthKey];
+
+                    bool isDisabled = false;
+                    if (currentUser.serviceStartDate != null) {
+                      final cardDate = DateTime(_currentYear, monthNumber);
+                      // We only care about month/year precision. 
+                      // If cardDate is strictly before the start date's month/year, disable it.
+                      final startDate = DateTime(currentUser.serviceStartDate!.year, currentUser.serviceStartDate!.month);
+                      if (cardDate.isBefore(startDate)) {
+                        isDisabled = true;
+                      }
+                    }
 
                     return _MonthCard(
                       month: month,
                       paymentDate: paymentDate,
+                      isDisabled: isDisabled,
                       onTap: () => _showPaymentConfirmation(month, monthKey, paymentDate),
                     );
                   },
@@ -591,11 +614,13 @@ class _InfoChip extends StatelessWidget {
 class _MonthCard extends StatelessWidget {
   final String month;
   final String? paymentDate;
+  final bool isDisabled;
   final VoidCallback onTap;
 
   const _MonthCard({
     required this.month,
     required this.paymentDate,
+    this.isDisabled = false,
     required this.onTap,
   });
 
@@ -612,6 +637,38 @@ class _MonthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isPaid = paymentDate != null;
     
+    if (isDisabled) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey.shade200,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.ban,
+              color: Colors.grey.shade300,
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              month,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),

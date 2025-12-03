@@ -60,6 +60,7 @@ class User {
   final int paymentEndDay;
   final Map<String, String> payments; // Changed to String to store date
   final String? note;
+  final DateTime? serviceStartDate;
 
   User({
     required this.id,
@@ -72,6 +73,7 @@ class User {
     required this.paymentEndDay,
     required this.payments,
     this.note,
+    this.serviceStartDate,
   });
 
   String get range => '$paymentStartDay al $paymentEndDay';
@@ -88,6 +90,9 @@ class User {
       paymentEndDay: json['paymentEndDay'] ?? 5,
       payments: Map<String, String>.from(json['payments'] ?? {}),
       note: json['note'],
+      serviceStartDate: json['serviceStartDate'] != null
+          ? DateTime.parse(json['serviceStartDate'])
+          : null,
     );
   }
 
@@ -103,6 +108,7 @@ class User {
       'paymentEndDay': paymentEndDay,
       'payments': payments,
       'note': note,
+      'serviceStartDate': serviceStartDate?.toIso8601String(),
     };
   }
 
@@ -117,6 +123,7 @@ class User {
     int? paymentEndDay,
     Map<String, String>? payments,
     String? note,
+    DateTime? serviceStartDate,
   }) {
     return User(
       id: id ?? this.id,
@@ -129,6 +136,7 @@ class User {
       paymentEndDay: paymentEndDay ?? this.paymentEndDay,
       payments: payments ?? this.payments,
       note: note ?? this.note,
+      serviceStartDate: serviceStartDate ?? this.serviceStartDate,
     );
   }
 }

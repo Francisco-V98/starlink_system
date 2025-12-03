@@ -26,6 +26,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
   
   int _paymentStartDay = 1;
   int _paymentEndDay = 5;
+  DateTime? _serviceStartDate;
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
         antennaSerial: _antennaSerialController.text,
         paymentStartDay: _paymentStartDay,
         paymentEndDay: _paymentEndDay,
+        serviceStartDate: _serviceStartDate,
         isNewEmail: _isNewEmailMode,
       );
 
@@ -73,6 +75,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
       setState(() {
         _paymentStartDay = 1;
         _paymentEndDay = 5;
+        _serviceStartDate = null;
       });
       
       if (_isNewEmailMode) {
@@ -312,7 +315,53 @@ class _RegistrationTabState extends State<RegistrationTab> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 6. Payment Day
+                    // 6. Service Start Date
+                    const Text(
+                      'Fecha de Contratación',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _serviceStartDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _serviceStartDate = picked;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(LucideIcons.calendar),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _serviceStartDate != null
+                                    ? "${_serviceStartDate!.day}/${_serviceStartDate!.month}/${_serviceStartDate!.year}"
+                                    : "Seleccionar fecha...",
+                                style: TextStyle(
+                                  color: _serviceStartDate != null ? Colors.black : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 7. Payment Day
                     const Text(
                       'Días de Pago (Inicio - Fin)',
                       style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF475569)),

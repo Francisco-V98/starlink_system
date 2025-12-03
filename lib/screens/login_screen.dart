@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
   String? _errorMessage;
 
   @override
@@ -129,11 +130,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 24),
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: !_isPasswordVisible,
+                    decoration: InputDecoration(
                       labelText: 'Contraseña',
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
+                      border: const OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
