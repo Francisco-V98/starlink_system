@@ -139,4 +139,66 @@ class User {
       serviceStartDate: serviceStartDate ?? this.serviceStartDate,
     );
   }
+
+  int get overdueMonths {
+    final now = DateTime.now();
+    int count = 0;
+    
+    // Determine where to start checking
+    // If today > paymentEndDay, check this month. Else check previous month.
+    DateTime iterator;
+    if (now.day > paymentEndDay) {
+      iterator = DateTime(now.year, now.month);
+    } else {
+      iterator = DateTime(now.year, now.month - 1);
+    }
+
+    // If serviceStartDate is null, we default to 0 to avoid issues
+    if (serviceStartDate == null) return 0;
+    
+    final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
+
+    // Loop backwards
+    while (iterator.isAfter(start) || iterator.isAtSameMomentAs(start)) {
+       final key = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+       if (payments.containsKey(key)) {
+         break; // Found a payment, stop counting
+       }
+       count++;
+       iterator = DateTime(iterator.year, iterator.month - 1);
+    }
+    return count;
+  }
+
+  bool isMonthOverdue(String monthKey) {
+    if (payments.containsKey(monthKey)) return false; // Paid
+    if (serviceStartDate == null) return false;
+
+    try {
+      final parts = monthKey.split('-');
+      final year = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final monthDate = DateTime(year, month);
+      
+      final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
+      // We only care about month precision for start date comparison
+      if (monthDate.isBefore(start)) return false; 
+
+      final now = DateTime.now();
+      
+      // If the month is in the future, it's not overdue
+      if (monthDate.year > now.year) return false;
+      if (monthDate.year == now.year && monthDate.month > now.month) return false;
+
+      // If it's the current month
+      if (monthDate.year == now.year && monthDate.month == now.month) {
+        return now.day > paymentEndDay;
+      }
+
+      // If it's a past month and not paid, it's overdue
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

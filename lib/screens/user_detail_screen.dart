@@ -547,20 +547,26 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                     final paymentDate = currentUser.payments[monthKey];
 
                     bool isDisabled = false;
+                    bool isOverdue = false;
+                    
                     if (currentUser.serviceStartDate != null) {
                       final cardDate = DateTime(_currentYear, monthNumber);
-                      // We only care about month/year precision. 
-                      // If cardDate is strictly before the start date's month/year, disable it.
                       final startDate = DateTime(currentUser.serviceStartDate!.year, currentUser.serviceStartDate!.month);
                       if (cardDate.isBefore(startDate)) {
                         isDisabled = true;
                       }
                     }
 
+                    // Check if month is overdue
+                    if (!isDisabled && paymentDate == null) {
+                      isOverdue = currentUser.isMonthOverdue(monthKey);
+                    }
+
                     return _MonthCard(
                       month: month,
                       paymentDate: paymentDate,
                       isDisabled: isDisabled,
+                      isOverdue: isOverdue,
                       onTap: () => _showPaymentConfirmation(month, monthKey, paymentDate),
                     );
                   },
@@ -615,12 +621,14 @@ class _MonthCard extends StatelessWidget {
   final String month;
   final String? paymentDate;
   final bool isDisabled;
+  final bool isOverdue;
   final VoidCallback onTap;
 
   const _MonthCard({
     required this.month,
     required this.paymentDate,
     this.isDisabled = false,
+    this.isOverdue = false,
     required this.onTap,
   });
 
@@ -669,6 +677,67 @@ class _MonthCard extends StatelessWidget {
       );
     }
 
+    // Overdue styling (red)
+    if (isOverdue) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.red.shade600,
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.shade100,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.alertCircle,
+                color: Colors.red.shade600,
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                month,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red.shade700,
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade600,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Atrasado',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Paid or unpaid (but not overdue)
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),

@@ -39,6 +39,9 @@ class _DashboardTabState extends State<DashboardTab> {
     // Calculate statistics
     final totalEmails = data.length;
     final totalUsers = data.fold<int>(0, (sum, group) => sum + group.users.length);
+    final totalOverdueUsers = data.fold<int>(0, (sum, group) {
+      return sum + group.users.where((u) => u.overdueMonths > 0).length;
+    });
 
     return Column(
       children: [
@@ -118,6 +121,21 @@ class _DashboardTabState extends State<DashboardTab> {
                         fontSize: 13,
                       ),
                     ),
+                    if (totalOverdueUsers > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
+                      const SizedBox(width: 8),
+                      const Icon(LucideIcons.alertCircle, size: 14, color: Colors.red),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$totalOverdueUsers',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -163,6 +181,8 @@ class _ClientGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final overdueCount = group.users.where((u) => u.overdueMonths > 0).length;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -210,34 +230,71 @@ class _ClientGroupCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade600,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.shade200,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.shade200,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(LucideIcons.users, color: Colors.white, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${group.users.length} usuario${group.users.length != 1 ? 's' : ''}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(LucideIcons.users, color: Colors.white, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${group.users.length} usuario${group.users.length != 1 ? 's' : ''}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (overdueCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.shade200,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(LucideIcons.alertCircle, color: Colors.white, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$overdueCount moroso${overdueCount != 1 ? 's' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                   if (group.alias.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -283,6 +340,8 @@ class _UserListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final overdueMonths = user.overdueMonths;
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -308,12 +367,20 @@ class _UserListTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    user.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (overdueMonths > 0) ...[
+                        const SizedBox(width: 8),
+                        const Icon(LucideIcons.alertCircle, color: Colors.red, size: 16),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -340,6 +407,17 @@ class _UserListTile extends StatelessWidget {
                         user.range,
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       ),
+                      if (overdueMonths > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '$overdueMonths mes${overdueMonths != 1 ? 'es' : ''} de retraso',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   if (user.note != null && user.note!.isNotEmpty)
