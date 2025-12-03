@@ -70,14 +70,22 @@ class DataProvider extends ChangeNotifier {
     required String email,
     required String name,
     required String plan,
-    required String range,
+    required String country,
+    required String phoneNumber,
+    required String antennaSerial,
+    required int paymentStartDay,
+    required int paymentEndDay,
     bool isNewEmail = false,
   }) async {
     final newUser = User(
       id: DateTime.now().millisecondsSinceEpoch,
       name: name,
       plan: plan,
-      range: range.isEmpty ? "Pendiente" : range,
+      country: country,
+      phoneNumber: phoneNumber,
+      antennaSerial: antennaSerial,
+      paymentStartDay: paymentStartDay,
+      paymentEndDay: paymentEndDay,
       payments: {},
     );
 
@@ -105,7 +113,7 @@ class DataProvider extends ChangeNotifier {
     await saveData();
   }
 
-  Future<void> togglePayment(String email, int userId, String month) async {
+  Future<void> setPaymentDate(String email, int userId, String month, String? date) async {
     final groupIndex = _data.indexWhere((g) => g.email == email);
     if (groupIndex == -1) return;
 
@@ -113,11 +121,13 @@ class DataProvider extends ChangeNotifier {
     if (userIndex == -1) return;
 
     final user = _data[groupIndex].users[userIndex];
-    final currentStatus = user.payments[month] ?? false;
     
-    // Create a new map to ensure immutability/change detection if needed, though direct mutation works with notifyListeners
-    final newPayments = Map<String, bool>.from(user.payments);
-    newPayments[month] = !currentStatus;
+    final newPayments = Map<String, String>.from(user.payments);
+    if (date == null) {
+      newPayments.remove(month);
+    } else {
+      newPayments[month] = date;
+    }
 
     _data[groupIndex].users[userIndex] = user.copyWith(payments: newPayments);
 
@@ -130,7 +140,11 @@ class DataProvider extends ChangeNotifier {
     int userId, {
     String? name,
     String? plan,
-    String? range,
+    String? phoneNumber,
+    String? antennaSerial,
+    String? country,
+    int? paymentStartDay,
+    int? paymentEndDay,
     String? note,
   }) async {
     final groupIndex = _data.indexWhere((g) => g.email == email);
@@ -143,7 +157,11 @@ class DataProvider extends ChangeNotifier {
     _data[groupIndex].users[userIndex] = user.copyWith(
       name: name ?? user.name,
       plan: plan ?? user.plan,
-      range: range ?? user.range,
+      phoneNumber: phoneNumber ?? user.phoneNumber,
+      antennaSerial: antennaSerial ?? user.antennaSerial,
+      country: country ?? user.country,
+      paymentStartDay: paymentStartDay ?? user.paymentStartDay,
+      paymentEndDay: paymentEndDay ?? user.paymentEndDay,
       note: note ?? user.note,
     );
 
