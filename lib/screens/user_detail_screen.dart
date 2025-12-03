@@ -49,38 +49,82 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     "Dic"
   ];
 
-  void _showPaymentConfirmation(String month, bool currentStatus) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(currentStatus ? 'Desmarcar pago' : 'Marcar pago'),
-        content: Text(
-          currentStatus
-              ? '¿Deseas desmarcar el mes de $month como pagado?'
-              : '¿Deseas marcar el mes de $month como pagado?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+  void _showPaymentConfirmation(String month, String monthKey, String? currentPaymentDate) async {
+    final bool isPaid = currentPaymentDate != null;
+    
+    if (isPaid) {
+      // Show unmark confirmation
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Desmarcar pago'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('¿Deseas desmarcar el mes de $month como pagado?'),
+              const SizedBox(height: 8),
+              Text(
+                'Fecha de pago: ${_formatDate(currentPaymentDate)}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Provider.of<DataProvider>(context, listen: false)
-                  .togglePayment(widget.email, widget.user.id, monthsShort[months.indexOf(month)]);
-              Navigator.pop(ctx);
-            },
-            child: Text(
-              currentStatus ? 'Desmarcar' : 'Marcar',
-              style: TextStyle(
-                color: currentStatus ? Colors.orange : Colors.green,
-                fontWeight: FontWeight.bold,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Provider.of<DataProvider>(context, listen: false)
+                    .setPaymentDate(widget.email, widget.user.id, monthKey, null);
+                Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Desmarcar',
+                style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    } else {
+      // Show date picker
+      final DateTime? pickedDate = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2100),
+        locale: const Locale('es', 'ES'),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFF1E3A8A),
+                onPrimary: Colors.white,
+                onSurface: Colors.black,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedDate != null) {
+        Provider.of<DataProvider>(context, listen: false)
+            .setPaymentDate(widget.email, widget.user.id, monthKey, pickedDate.toIso8601String());
+      }
+    }
+  }
+
+  String _formatDate(String isoDate) {
+    try {
+      final date = DateTime.parse(isoDate);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return isoDate;
+    }
   }
 
   void _showOptionsMenu() {
@@ -127,8 +171,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   void _showEditDialog() {
     final nameController = TextEditingController(text: widget.user.name);
-    final rangeController = TextEditingController(text: widget.user.range);
+    final phoneController = TextEditingController(text: widget.user.phoneNumber);
+    final serialController = TextEditingController(text: widget.user.antennaSerial);
+    final countryController = TextEditingController(text: widget.user.country);
     String selectedPlan = widget.user.plan;
+    int startDay = widget.user.paymentStartDay;
+    int endDay = widget.user.paymentEndDay;
 
     showDialog(
       context: context,
@@ -144,6 +192,34 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Nombre / Ubicación',
                     border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.phone),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: serialController,
+                  decoration: const InputDecoration(
+                    labelText: 'Serial de la Antena',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.router),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: countryController,
+                  decoration: const InputDecoration(
+                    labelText: 'País',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.globe),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -164,12 +240,49 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: rangeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Días de Pago',
-                    border: OutlineInputBorder(),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: startDay,
+                        decoration: const InputDecoration(
+                          labelText: 'Día Inicio',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(31, (index) => index + 1).map((day) {
+                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            startDay = value!;
+                            if (endDay < startDay) {
+                              endDay = startDay;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: endDay,
+                        decoration: const InputDecoration(
+                          labelText: 'Día Fin',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(31, (index) => index + 1).map((day) {
+                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value! >= startDay) {
+                              endDay = value;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -187,7 +300,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 widget.user.id,
                 name: nameController.text,
                 plan: selectedPlan,
-                range: rangeController.text,
+                phoneNumber: phoneController.text,
+                antennaSerial: serialController.text,
+                country: countryController.text,
+                paymentStartDay: startDay,
+                paymentEndDay: endDay,
               );
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -294,8 +411,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  alignment: WrapAlignment.center,
                   children: [
                     _InfoChip(
                       icon: LucideIcons.package,
@@ -309,6 +428,27 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       value: currentUser.range,
                       color: Colors.blue,
                     ),
+                    if (currentUser.phoneNumber.isNotEmpty)
+                      _InfoChip(
+                        icon: LucideIcons.phone,
+                        label: 'Teléfono',
+                        value: currentUser.phoneNumber,
+                        color: Colors.green,
+                      ),
+                    if (currentUser.antennaSerial.isNotEmpty)
+                      _InfoChip(
+                        icon: LucideIcons.router,
+                        label: 'Serial',
+                        value: currentUser.antennaSerial,
+                        color: Colors.orange,
+                      ),
+                    if (currentUser.country.isNotEmpty)
+                      _InfoChip(
+                        icon: LucideIcons.globe,
+                        label: 'País',
+                        value: currentUser.country,
+                        color: Colors.indigo,
+                      ),
                   ],
                 ),
                 if (currentUser.note != null && currentUser.note!.isNotEmpty)
@@ -393,12 +533,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   itemBuilder: (ctx, index) {
                     final month = months[index];
                     final monthKey = monthsShort[index];
-                    final isPaid = currentUser.payments[monthKey] ?? false;
+                    final paymentDate = currentUser.payments[monthKey];
 
                     return _MonthCard(
                       month: month,
-                      isPaid: isPaid,
-                      onTap: () => _showPaymentConfirmation(month, isPaid),
+                      paymentDate: paymentDate,
+                      onTap: () => _showPaymentConfirmation(month, monthKey, paymentDate),
                     );
                   },
                 );
@@ -450,17 +590,28 @@ class _InfoChip extends StatelessWidget {
 
 class _MonthCard extends StatelessWidget {
   final String month;
-  final bool isPaid;
+  final String? paymentDate;
   final VoidCallback onTap;
 
   const _MonthCard({
     required this.month,
-    required this.isPaid,
+    required this.paymentDate,
     required this.onTap,
   });
 
+  String _formatDate(String isoDate) {
+    try {
+      final date = DateTime.parse(isoDate);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return isoDate;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isPaid = paymentDate != null;
+    
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -505,9 +656,9 @@ class _MonthCard extends StatelessWidget {
                   color: Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  'Pagado',
-                  style: TextStyle(
+                child: Text(
+                  _formatDate(paymentDate!),
+                  style: const TextStyle(
                     fontSize: 10,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
