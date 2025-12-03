@@ -50,7 +50,29 @@ class _StarlinkManagerScreenState extends State<StarlinkManagerScreen> with Sing
               }
             },
             itemBuilder: (BuildContext context) {
+              final userEmail = FirebaseAuth.instance.currentUser?.email ?? 'Usuario';
               return [
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sesión iniciada como:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userEmail,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
                 const PopupMenuItem<String>(
                   value: 'logout',
                   child: Row(
