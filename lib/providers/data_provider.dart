@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/client_model.dart';
-import '../data/initial_data.dart';
+import '../services/firestore_service.dart';
 
 class DataProvider extends ChangeNotifier {
+  final FirestoreService _firestoreService = FirestoreService();
   List<ClientGroup> _data = [];
   String _searchTerm = '';
   bool _isLoading = true;
@@ -25,40 +24,19 @@ class DataProvider extends ChangeNotifier {
   }
 
   DataProvider() {
-    loadData();
+    _initData();
   }
 
-  Future<void> loadData() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? savedData = prefs.getString('starlinkData');
-
-      if (savedData != null) {
-        final List<dynamic> decoded = json.decode(savedData);
-        _data = decoded.map((e) => ClientGroup.fromJson(e)).toList();
-      } else {
-        _data = initialDataLoad;
-      }
-    } catch (e) {
-      print("Error loading data: $e");
-      _data = initialDataLoad;
-    }
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> saveData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String encoded = json.encode(_data.map((e) => e.toJson()).toList());
-      await prefs.setString('starlinkData', encoded);
-    } catch (e) {
-      print("Error saving data: $e");
-    }
+  void _initData() {
+    _firestoreService.getClientGroups().listen((groups) {
+      _data = groups;
+      _isLoading = false;
+      notifyListeners();
+    }, onError: (error) {
+      print("Error loading data from Firestore: $error");
+      _isLoading = false;
+      notifyListeners();
+    });
   }
 
   void setSearchTerm(String term) {
@@ -90,37 +68,49 @@ class DataProvider extends ChangeNotifier {
     );
 
     if (isNewEmail) {
-      _data.add(ClientGroup(
-        email: email,
-        alias: "",
-        users: [newUser],
-      ));
-    } else {
-      final index = _data.indexWhere((g) => g.email == email);
-      if (index != -1) {
-        _data[index].users.add(newUser);
+      // Safety check: if email already exists, treat as existing group
+      final existingIndex = _data.indexWhere((g) => g.email == email);
+      if (existingIndex != -1) {
+        final group = _data[existingIndex];
+        final updatedUsers = List<User>.from(group.users)..add(newUser);
+        final updatedGroup = group.copyWith(users: updatedUsers);
+        await _firestoreService.saveClientGroup(updatedGroup);
       } else {
-        // Fallback if email not found but marked as existing (shouldn't happen if UI is correct)
-        _data.add(ClientGroup(
+        final newGroup = ClientGroup(
           email: email,
           alias: "",
           users: [newUser],
-        ));
+        );
+        await _firestoreService.saveClientGroup(newGroup);
+      }
+    } else {
+      final index = _data.indexWhere((g) => g.email == email);
+      if (index != -1) {
+        final group = _data[index];
+        final updatedUsers = List<User>.from(group.users)..add(newUser);
+        final updatedGroup = group.copyWith(users: updatedUsers);
+        await _firestoreService.saveClientGroup(updatedGroup);
+      } else {
+        // Fallback: Create new group if not found locally but requested as existing
+        final newGroup = ClientGroup(
+          email: email,
+          alias: "",
+          users: [newUser],
+        );
+        await _firestoreService.saveClientGroup(newGroup);
       }
     }
-
-    notifyListeners();
-    await saveData();
   }
 
   Future<void> setPaymentDate(String email, int userId, String month, String? date) async {
     final groupIndex = _data.indexWhere((g) => g.email == email);
     if (groupIndex == -1) return;
 
-    final userIndex = _data[groupIndex].users.indexWhere((u) => u.id == userId);
+    final group = _data[groupIndex];
+    final userIndex = group.users.indexWhere((u) => u.id == userId);
     if (userIndex == -1) return;
 
-    final user = _data[groupIndex].users[userIndex];
+    final user = group.users[userIndex];
     
     final newPayments = Map<String, String>.from(user.payments);
     if (date == null) {
@@ -129,10 +119,12 @@ class DataProvider extends ChangeNotifier {
       newPayments[month] = date;
     }
 
-    _data[groupIndex].users[userIndex] = user.copyWith(payments: newPayments);
+    final updatedUser = user.copyWith(payments: newPayments);
+    final updatedUsers = List<User>.from(group.users);
+    updatedUsers[userIndex] = updatedUser;
 
-    notifyListeners();
-    await saveData();
+    final updatedGroup = group.copyWith(users: updatedUsers);
+    await _firestoreService.saveClientGroup(updatedGroup);
   }
 
   Future<void> updateUser(
@@ -150,11 +142,12 @@ class DataProvider extends ChangeNotifier {
     final groupIndex = _data.indexWhere((g) => g.email == email);
     if (groupIndex == -1) return;
 
-    final userIndex = _data[groupIndex].users.indexWhere((u) => u.id == userId);
+    final group = _data[groupIndex];
+    final userIndex = group.users.indexWhere((u) => u.id == userId);
     if (userIndex == -1) return;
 
-    final user = _data[groupIndex].users[userIndex];
-    _data[groupIndex].users[userIndex] = user.copyWith(
+    final user = group.users[userIndex];
+    final updatedUser = user.copyWith(
       name: name ?? user.name,
       plan: plan ?? user.plan,
       phoneNumber: phoneNumber ?? user.phoneNumber,
@@ -165,23 +158,25 @@ class DataProvider extends ChangeNotifier {
       note: note ?? user.note,
     );
 
-    notifyListeners();
-    await saveData();
+    final updatedUsers = List<User>.from(group.users);
+    updatedUsers[userIndex] = updatedUser;
+
+    final updatedGroup = group.copyWith(users: updatedUsers);
+    await _firestoreService.saveClientGroup(updatedGroup);
   }
 
   Future<void> deleteUser(String email, int userId) async {
     final groupIndex = _data.indexWhere((g) => g.email == email);
     if (groupIndex == -1) return;
 
-    _data[groupIndex].users.removeWhere((u) => u.id == userId);
+    final group = _data[groupIndex];
+    final updatedUsers = List<User>.from(group.users)..removeWhere((u) => u.id == userId);
 
-    // Remove group if empty
-    if (_data[groupIndex].users.isEmpty) {
-      _data.removeAt(groupIndex);
+    if (updatedUsers.isEmpty) {
+      await _firestoreService.deleteClientGroup(email);
+    } else {
+      final updatedGroup = group.copyWith(users: updatedUsers);
+      await _firestoreService.saveClientGroup(updatedGroup);
     }
-
-    notifyListeners();
-    await saveData();
   }
-
 }
