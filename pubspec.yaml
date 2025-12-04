@@ -11,13 +11,11 @@ dependencies:
   country_picker: ^2.0.27
   firebase_auth: ^6.1.2
   firebase_core: ^4.2.1
-  firebase_storage: ^13.0.4
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
-  isar: ^3.1.0+1
   lucide_icons: ^0.257.0
   provider: ^6.1.5+1
   shared_preferences: ^2.5.3
@@ -26,6 +24,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4 
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/vdv-panel-logo.png"
+  web:
+    generate: true
+    image_path: "assets/icon/vdv-panel-logo.png"
+    background_color: "#000000"
+    theme_color: "#1A73E8"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
