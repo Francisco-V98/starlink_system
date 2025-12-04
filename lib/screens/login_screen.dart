@@ -147,6 +147,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    textCapitalization: TextCapitalization.none,
+                    onChanged: (value) {
+                      _emailController.value = _emailController.value.copyWith(
+                        text: value.toLowerCase(),
+                        selection: TextSelection.collapsed(offset: value.length),
+                      );
+                    },
                     decoration: const InputDecoration(
                       labelText: 'Correo Electrónico',
                       prefixIcon: Icon(Icons.email_outlined),

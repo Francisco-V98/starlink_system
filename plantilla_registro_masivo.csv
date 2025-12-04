@@ -1,0 +1,5 @@
+email,nombre,plan,pais,dia_inicio_pago,dia_fin_pago,fecha_contratacion,telefono,serial_antena
+cliente@example.com,Casa Principal,Ilimitado,Venezuela,1,5,2025-01-15,+58412345678,KIT123456789
+cliente@example.com,Casa Playa,50gb,Venezuela,1,5,2025-02-01,+58424567890,KIT987654321
+cliente2@example.com,Oficina Central,Ilimitado,Colombia,10,15,2024-12-01,+57312345678,
+cliente3@example.com,Apartamento,50gb,México,5,10,2025-03-01,,KIT555666777

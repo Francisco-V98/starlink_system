@@ -91,6 +91,98 @@ class _RegistrationTabState extends State<RegistrationTab> {
     }
   }
 
+  void _showBulkRegistrationOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(LucideIcons.fileSpreadsheet, color: Color(0xFF1E3A8A)),
+                const SizedBox(width: 12),
+                const Text(
+                  'Registro Masivo',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF334155),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Importa múltiples usuarios desde una hoja de cálculo',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _downloadTemplate();
+              },
+              icon: const Icon(LucideIcons.download),
+              label: const Text('Descargar Plantilla'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _importTemplate();
+              },
+              icon: const Icon(LucideIcons.upload),
+              label: const Text('Importar Plantilla'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1E3A8A),
+                side: const BorderSide(color: Color(0xFF1E3A8A)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _downloadTemplate() {
+    // TODO: Implement template download
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Función de descarga de plantilla en desarrollo'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  void _importTemplate() {
+    // TODO: Implement template import
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Función de importación de plantilla en desarrollo'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
@@ -111,16 +203,28 @@ class _RegistrationTabState extends State<RegistrationTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(LucideIcons.user, color: Color(0xFF1E3A8A)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Registrar Nuevo Cliente',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF334155),
+                        const Icon(LucideIcons.user, color: Color(0xFF1E3A8A)),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Registrar Nuevo Cliente',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _showBulkRegistrationOptions,
+                          icon: const Icon(LucideIcons.fileSpreadsheet, size: 18),
+                          label: const Text('Registro Masivo'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1E3A8A),
+                            side: const BorderSide(color: Color(0xFF1E3A8A)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                         ),
                       ],
@@ -231,7 +335,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(LucideIcons.phone),
                       ),
-                      validator: (value) => value!.isEmpty ? 'Requerido' : null,
+
                     ),
                     const SizedBox(height: 16),
 
@@ -248,7 +352,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(LucideIcons.router),
                       ),
-                      validator: (value) => value!.isEmpty ? 'Requerido' : null,
+
                     ),
                     const SizedBox(height: 16),
 
