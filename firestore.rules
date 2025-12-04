@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Reglas de seguridad para VDV Panel
+    
+    // Bloquear acceso a todo por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Permitir acceso solo a la colección del propio administrador
+    match /admins/{adminId}/{document=**} {
+      // Solo permite leer/escribir si el usuario está autenticado 
+      // Y su UID coincide con el ID del documento admin
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+  }
+}
