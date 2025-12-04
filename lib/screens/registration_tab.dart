@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:country_picker/country_picker.dart';
@@ -23,6 +24,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
   String _userPlan = 'Ilimitado';
   String _selectedCountry = 'Venezuela';
   Country? _countryObject;
+  Country _selectedPhoneCountry = Country.parse('VE');
   
   int _paymentStartDay = 1;
   int _paymentEndDay = 5;
@@ -55,12 +57,14 @@ class _RegistrationTabState extends State<RegistrationTab> {
         return;
       }
 
+      final fullPhoneNumber = '+${_selectedPhoneCountry.phoneCode} ${_phoneController.text}';
+
       provider.addUser(
         email: targetEmail,
         name: _userNameController.text,
         plan: _userPlan,
         country: _selectedCountry,
-        phoneNumber: _phoneController.text,
+        phoneNumber: fullPhoneNumber,
         antennaSerial: _antennaSerialController.text,
         paymentStartDay: _paymentStartDay,
         paymentEndDay: _paymentEndDay,
@@ -76,6 +80,7 @@ class _RegistrationTabState extends State<RegistrationTab> {
         _paymentStartDay = 1;
         _paymentEndDay = 5;
         _serviceStartDate = null;
+        _selectedPhoneCountry = Country.parse('VE');
       });
       
       if (_isNewEmailMode) {
@@ -293,11 +298,17 @@ class _RegistrationTabState extends State<RegistrationTab> {
                           else
                             TextFormField(
                               controller: _newEmailController,
+                              keyboardType: TextInputType.emailAddress,
                               decoration: const InputDecoration(
                                 hintText: 'ejemplo@correo.com',
                                 border: OutlineInputBorder(),
                               ),
-                              validator: (value) => value!.isEmpty ? 'Requerido' : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Requerido';
+                                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                if (!emailRegex.hasMatch(value)) return 'Formato de correo inválido';
+                                return null;
+                              },
                             ),
                         ],
                       ),
@@ -329,13 +340,38 @@ class _RegistrationTabState extends State<RegistrationTab> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        hintText: '+58...',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(LucideIcons.phone),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        hintText: '4121234567',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: Container(
+                          padding: const EdgeInsets.all(12),
+                          child: InkWell(
+                            onTap: () {
+                              showCountryPicker(
+                                context: context,
+                                showPhoneCode: true,
+                                onSelect: (Country country) {
+                                  setState(() {
+                                    _selectedPhoneCountry = country;
+                                  });
+                                },
+                              );
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${_selectedPhoneCountry.flagEmoji} +${_selectedPhoneCountry.phoneCode}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                                const Icon(Icons.arrow_drop_down, size: 18),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-
                     ),
                     const SizedBox(height: 16),
 
@@ -352,7 +388,6 @@ class _RegistrationTabState extends State<RegistrationTab> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(LucideIcons.router),
                       ),
-
                     ),
                     const SizedBox(height: 16),
 

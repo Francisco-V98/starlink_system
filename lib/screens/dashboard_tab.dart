@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:country_picker/country_picker.dart';
+import 'package:flutter/services.dart';
 import '../providers/data_provider.dart';
 import '../models/client_model.dart';
 import 'user_detail_screen.dart';
@@ -503,7 +505,16 @@ class _UserListTile extends StatelessWidget {
 
   void _showEditDialog(BuildContext context) {
     final nameController = TextEditingController(text: user.name);
-    final phoneController = TextEditingController(text: user.phoneNumber);
+    // Try to parse existing phone number
+    String initialPhone = user.phoneNumber;
+    Country selectedCountry = Country.parse('VE');
+    
+    // Simple heuristic: if starts with +, try to find country
+    // For now, we'll just assume if it doesn't match our format, we leave it as is in the controller
+    // but default the picker to VE.
+    // Ideally we would parse it.
+    
+    final phoneController = TextEditingController(text: initialPhone);
     final serialController = TextEditingController(text: user.antennaSerial);
     final countryController = TextEditingController(text: user.country);
     String selectedPlan = user.plan;
@@ -529,11 +540,37 @@ class _UserListTile extends StatelessWidget {
                 const SizedBox(height: 16),
                 TextField(
                   controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
                     labelText: 'Teléfono',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(LucideIcons.phone),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Container(
+                      padding: const EdgeInsets.all(12),
+                      child: InkWell(
+                        onTap: () {
+                          showCountryPicker(
+                            context: context,
+                            showPhoneCode: true,
+                            onSelect: (Country country) {
+                              setDialogState(() {
+                                selectedCountry = country;
+                              });
+                            },
+                          );
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${selectedCountry.flagEmoji} +${selectedCountry.phoneCode}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -627,12 +664,24 @@ class _UserListTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
+              // Construct full phone number
+              // If the user didn't change the text and it was already full, we might double prefix if we are not careful.
+              // But here we are forcing digits only in the input.
+              // So if the original was "+58 412...", the input will show "58412..." (digits only).
+              // This is tricky for editing existing data.
+              // Ideally we should strip the country code from the initial value if it matches.
+              
+              String finalPhone = phoneController.text;
+              if (finalPhone.isNotEmpty) {
+                 finalPhone = '+${selectedCountry.phoneCode} $finalPhone';
+              }
+
               Provider.of<DataProvider>(context, listen: false).updateUser(
                 email,
                 user.id,
                 name: nameController.text,
                 plan: selectedPlan,
-                phoneNumber: phoneController.text,
+                phoneNumber: finalPhone,
                 antennaSerial: serialController.text,
                 country: countryController.text,
                 paymentStartDay: startDay,

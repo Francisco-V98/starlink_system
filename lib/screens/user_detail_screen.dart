@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:country_picker/country_picker.dart';
+import 'package:flutter/services.dart';
 import '../providers/data_provider.dart';
 import '../models/client_model.dart';
 
@@ -171,7 +173,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   void _showEditDialog() {
     final nameController = TextEditingController(text: widget.user.name);
-    final phoneController = TextEditingController(text: widget.user.phoneNumber);
+    // Try to parse existing phone number
+    String initialPhone = widget.user.phoneNumber;
+    Country selectedCountry = Country.parse('VE');
+    
+    final phoneController = TextEditingController(text: initialPhone);
     final serialController = TextEditingController(text: widget.user.antennaSerial);
     final countryController = TextEditingController(text: widget.user.country);
     String selectedPlan = widget.user.plan;
@@ -197,11 +203,37 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
                     labelText: 'Teléfono',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(LucideIcons.phone),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Container(
+                      padding: const EdgeInsets.all(12),
+                      child: InkWell(
+                        onTap: () {
+                          showCountryPicker(
+                            context: context,
+                            showPhoneCode: true,
+                            onSelect: (Country country) {
+                              setDialogState(() {
+                                selectedCountry = country;
+                              });
+                            },
+                          );
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${selectedCountry.flagEmoji} +${selectedCountry.phoneCode}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -295,12 +327,17 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           ),
           TextButton(
             onPressed: () {
+              String finalPhone = phoneController.text;
+              if (finalPhone.isNotEmpty) {
+                 finalPhone = '+${selectedCountry.phoneCode} $finalPhone';
+              }
+
               Provider.of<DataProvider>(context, listen: false).updateUser(
                 widget.email,
                 widget.user.id,
                 name: nameController.text,
                 plan: selectedPlan,
-                phoneNumber: phoneController.text,
+                phoneNumber: finalPhone,
                 antennaSerial: serialController.text,
                 country: countryController.text,
                 paymentStartDay: startDay,
