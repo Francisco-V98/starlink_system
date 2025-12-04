@@ -562,11 +562,22 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       isOverdue = currentUser.isMonthOverdue(monthKey);
                     }
 
+                    bool isPaymentDue = false;
+                    final now = DateTime.now();
+                    if (!isDisabled && paymentDate == null && !isOverdue) {
+                      if (_currentYear == now.year && monthNumber == now.month) {
+                        if (now.day >= currentUser.paymentStartDay && now.day <= currentUser.paymentEndDay) {
+                          isPaymentDue = true;
+                        }
+                      }
+                    }
+
                     return _MonthCard(
                       month: month,
                       paymentDate: paymentDate,
                       isDisabled: isDisabled,
                       isOverdue: isOverdue,
+                      isPaymentDue: isPaymentDue,
                       onTap: () => _showPaymentConfirmation(month, monthKey, paymentDate),
                     );
                   },
@@ -622,6 +633,7 @@ class _MonthCard extends StatelessWidget {
   final String? paymentDate;
   final bool isDisabled;
   final bool isOverdue;
+  final bool isPaymentDue;
   final VoidCallback onTap;
 
   const _MonthCard({
@@ -629,6 +641,7 @@ class _MonthCard extends StatelessWidget {
     required this.paymentDate,
     this.isDisabled = false,
     this.isOverdue = false,
+    this.isPaymentDue = false,
     required this.onTap,
   });
 
@@ -724,6 +737,66 @@ class _MonthCard extends StatelessWidget {
                 ),
                 child: const Text(
                   'Atrasado',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Payment Due styling (yellow)
+    if (isPaymentDue) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.orange.shade600,
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.shade100,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.clock,
+                color: Colors.orange.shade600,
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                month,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade600,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Por pagar',
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.white,

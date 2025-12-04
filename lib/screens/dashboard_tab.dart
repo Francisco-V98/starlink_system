@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/data_provider.dart';
 import '../models/client_model.dart';
 import 'user_detail_screen.dart';
@@ -31,6 +32,24 @@ class _DashboardTabState extends State<DashboardTab> {
     });
   }
 
+  bool _isPaymentDue(User user) {
+    final now = DateTime.now();
+    final currentMonthKey = "${now.year}-${now.month.toString().padLeft(2, '0')}";
+    
+    // If already paid, not due
+    if (user.payments.containsKey(currentMonthKey)) return false;
+    
+    // Check if service has started
+    if (user.serviceStartDate != null) {
+      final start = DateTime(user.serviceStartDate!.year, user.serviceStartDate!.month);
+      final currentMonth = DateTime(now.year, now.month);
+      if (currentMonth.isBefore(start)) return false;
+    }
+
+    // Check if in payment window
+    return now.day >= user.paymentStartDay && now.day <= user.paymentEndDay;
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
@@ -41,6 +60,9 @@ class _DashboardTabState extends State<DashboardTab> {
     final totalUsers = data.fold<int>(0, (sum, group) => sum + group.users.length);
     final totalOverdueUsers = data.fold<int>(0, (sum, group) {
       return sum + group.users.where((u) => u.overdueMonths > 0).length;
+    });
+    final totalPaymentDueUsers = data.fold<int>(0, (sum, group) {
+      return sum + group.users.where(_isPaymentDue).length;
     });
 
     return Column(
@@ -121,6 +143,21 @@ class _DashboardTabState extends State<DashboardTab> {
                         fontSize: 13,
                       ),
                     ),
+                    if (totalPaymentDueUsers > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
+                      const SizedBox(width: 8),
+                      const Icon(LucideIcons.clock, size: 14, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$totalPaymentDueUsers',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                     if (totalOverdueUsers > 0) ...[
                       const SizedBox(width: 8),
                       Text('•', style: TextStyle(color: Colors.blue.shade300)),
@@ -159,6 +196,7 @@ class _DashboardTabState extends State<DashboardTab> {
                           group: group,
                           isExpanded: isExpanded,
                           onToggle: () => _toggleGroup(group.email),
+                          isPaymentDue: _isPaymentDue,
                         );
                       },
                     ),
@@ -172,16 +210,19 @@ class _ClientGroupCard extends StatelessWidget {
   final ClientGroup group;
   final bool isExpanded;
   final VoidCallback onToggle;
+  final bool Function(User) isPaymentDue;
 
   const _ClientGroupCard({
     required this.group,
     required this.isExpanded,
     required this.onToggle,
+    required this.isPaymentDue,
   });
 
   @override
   Widget build(BuildContext context) {
     final overdueCount = group.users.where((u) => u.overdueMonths > 0).length;
+    final paymentDueCount = group.users.where(isPaymentDue).length;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -262,6 +303,38 @@ class _ClientGroupCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (paymentDueCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade600,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.orange.shade200,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(LucideIcons.clock, color: Colors.white, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$paymentDueCount por pagar',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       if (overdueCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
@@ -320,6 +393,7 @@ class _ClientGroupCard extends StatelessWidget {
                 return _UserListTile(
                   email: group.email,
                   user: user,
+                  isPaymentDue: isPaymentDue(user),
                 );
               }).toList(),
             ),
@@ -332,11 +406,252 @@ class _ClientGroupCard extends StatelessWidget {
 class _UserListTile extends StatelessWidget {
   final String email;
   final User user;
+  final bool isPaymentDue;
 
   const _UserListTile({
     required this.email,
     required this.user,
+    required this.isPaymentDue,
   });
+
+  static const List<String> months = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+
+  Future<void> _launchWhatsApp(BuildContext context) async {
+    if (user.phoneNumber.isEmpty) {
+      _showNoPhoneDialog(context);
+      return;
+    }
+
+    final overdueMonthsList = <String>[];
+    final now = DateTime.now();
+
+    // Calculate overdue months names
+    DateTime iterator;
+    if (now.day > user.paymentEndDay) {
+      iterator = DateTime(now.year, now.month);
+    } else {
+      iterator = DateTime(now.year, now.month - 1);
+    }
+
+    if (user.serviceStartDate != null) {
+      final start = DateTime(user.serviceStartDate!.year, user.serviceStartDate!.month);
+      while (iterator.isAfter(start) || iterator.isAtSameMomentAs(start)) {
+         final key = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+         if (user.payments.containsKey(key)) {
+           break;
+         }
+         overdueMonthsList.add("${months[iterator.month - 1]} ${iterator.year}");
+         iterator = DateTime(iterator.year, iterator.month - 1);
+      }
+    }
+
+    // Add current month if payment due
+    if (isPaymentDue) {
+       // Check if already in list (could happen if logic overlaps, though shouldn't with correct logic)
+       final currentMonthStr = "${months[now.month - 1]} ${now.year}";
+       if (!overdueMonthsList.contains(currentMonthStr)) {
+          overdueMonthsList.insert(0, currentMonthStr);
+       }
+    }
+
+    if (overdueMonthsList.isEmpty) return;
+
+    final message = "Hola ${user.name},\n\n"
+        "Le informamos que tiene pagos pendientes de los siguientes meses:\n"
+        "${overdueMonthsList.map((m) => "- $m").join("\n")}\n\n"
+        "Por favor realizar el pago a la brevedad.\n"
+        "Gracias.";
+
+    final url = Uri.parse("https://wa.me/${user.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}?text=${Uri.encodeComponent(message)}");
+    
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+        );
+      }
+    }
+  }
+
+  void _showNoPhoneDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sin número de teléfono'),
+        content: const Text('Este usuario no tiene un número de teléfono registrado.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEditDialog(context);
+            },
+            child: const Text('Agregar número', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    final nameController = TextEditingController(text: user.name);
+    final phoneController = TextEditingController(text: user.phoneNumber);
+    final serialController = TextEditingController(text: user.antennaSerial);
+    final countryController = TextEditingController(text: user.country);
+    String selectedPlan = user.plan;
+    int startDay = user.paymentStartDay;
+    int endDay = user.paymentEndDay;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar Usuario'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre / Ubicación',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.phone),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: serialController,
+                  decoration: const InputDecoration(
+                    labelText: 'Serial de la Antena',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.router),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: countryController,
+                  decoration: const InputDecoration(
+                    labelText: 'País',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(LucideIcons.globe),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedPlan,
+                  decoration: const InputDecoration(
+                    labelText: 'Plan',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Ilimitado', child: Text('Ilimitado')),
+                    DropdownMenuItem(value: '50gb', child: Text('50 GB')),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedPlan = value!;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: startDay,
+                        decoration: const InputDecoration(
+                          labelText: 'Día Inicio',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(31, (index) => index + 1).map((day) {
+                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            startDay = value!;
+                            if (endDay < startDay) {
+                              endDay = startDay;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: endDay,
+                        decoration: const InputDecoration(
+                          labelText: 'Día Fin',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(31, (index) => index + 1).map((day) {
+                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value! >= startDay) {
+                              endDay = value;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Provider.of<DataProvider>(context, listen: false).updateUser(
+                email,
+                user.id,
+                name: nameController.text,
+                plan: selectedPlan,
+                phoneNumber: phoneController.text,
+                antennaSerial: serialController.text,
+                country: countryController.text,
+                paymentStartDay: startDay,
+                paymentEndDay: endDay,
+              );
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Usuario actualizado'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -380,6 +695,10 @@ class _UserListTile extends StatelessWidget {
                         const SizedBox(width: 8),
                         const Icon(LucideIcons.alertCircle, color: Colors.red, size: 16),
                       ],
+                      if (isPaymentDue && overdueMonths == 0) ...[
+                         const SizedBox(width: 8),
+                         const Icon(LucideIcons.clock, color: Colors.orange, size: 16),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -417,6 +736,16 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ] else if (isPaymentDue) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Pago pendiente',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -441,6 +770,14 @@ class _UserListTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (overdueMonths > 0 || isPaymentDue) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () => _launchWhatsApp(context),
+                icon: const Icon(LucideIcons.messageCircle, color: Colors.green),
+                tooltip: 'Enviar WhatsApp',
+              ),
+            ],
             const Icon(LucideIcons.chevronRight, color: Colors.grey, size: 20),
           ],
         ),
