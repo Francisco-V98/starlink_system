@@ -71,24 +71,59 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.satellite_alt,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.primary,
+                  // Logo
+                  Container(
+                    width: 356,
+                    height: 356,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.shade100,
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(200),
+                      child: Image.asset(
+                        'assets/icon/vdv-panel-logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E3A8A),
+                              borderRadius: BorderRadius.circular(200),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'VDV',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Bienvenido',
+                    'Bienvenido a VDV Panel',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
-                    'Inicia sesión para continuar',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    'Sistema de gestión y control de pagos para servicios Starlink',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
                     textAlign: TextAlign.center,
