@@ -461,20 +461,27 @@ class _UserListTile extends StatelessWidget {
 
     if (overdueMonthsList.isEmpty) return;
 
-    final message = "Hola ${user.name},\n\n"
-        "Le informamos que tiene pagos pendientes de los siguientes meses:\n"
-        "${overdueMonthsList.map((m) => "- $m").join("\n")}\n\n"
-        "Por favor realizar el pago a la brevedad.\n"
-        "Gracias.";
+    final message = "Hola *${user.name}* 👋,\n\n"
+        "Le recordamos que su fecha de corte es del *${user.paymentStartDay} al ${user.paymentEndDay}* de cada mes.\n\n"
+        "Actualmente presenta los siguientes pagos pendientes:\n"
+        "${overdueMonthsList.map((m) => "• $m").join("\n")}\n\n"
+        "Por favor, realice su pago a la brevedad para mantener su servicio activo.\n\n"
+        "Gracias por su preferencia.";
 
     final url = Uri.parse("https://wa.me/${user.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}?text=${Uri.encodeComponent(message)}");
     
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+          );
+        }
+      }
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+          SnackBar(content: Text('Error al abrir WhatsApp: $e')),
         );
       }
     }
