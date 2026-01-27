@@ -17,7 +17,8 @@ class ClientGroup {
     return ClientGroup(
       email: json['email'] ?? '',
       alias: json['alias'] ?? '',
-      users: (json['users'] as List<dynamic>?)
+      users:
+          (json['users'] as List<dynamic>?)
               ?.map((e) => User.fromJson(e))
               .toList() ??
           [],
@@ -143,7 +144,7 @@ class User {
   int get overdueMonths {
     final now = DateTime.now();
     int count = 0;
-    
+
     // Determine where to start checking
     // If today > paymentEndDay, check this month. Else check previous month.
     DateTime iterator;
@@ -155,17 +156,18 @@ class User {
 
     // If serviceStartDate is null, we default to 0 to avoid issues
     if (serviceStartDate == null) return 0;
-    
+
     final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
 
     // Loop backwards
     while (iterator.isAfter(start) || iterator.isAtSameMomentAs(start)) {
-       final key = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
-       if (payments.containsKey(key)) {
-         break; // Found a payment, stop counting
-       }
-       count++;
-       iterator = DateTime(iterator.year, iterator.month - 1);
+      final key =
+          "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+      if (payments.containsKey(key)) {
+        break; // Found a payment, stop counting
+      }
+      count++;
+      iterator = DateTime(iterator.year, iterator.month - 1);
     }
     return count;
   }
@@ -179,16 +181,17 @@ class User {
       final year = int.parse(parts[0]);
       final month = int.parse(parts[1]);
       final monthDate = DateTime(year, month);
-      
+
       final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
       // We only care about month precision for start date comparison
-      if (monthDate.isBefore(start)) return false; 
+      if (monthDate.isBefore(start)) return false;
 
       final now = DateTime.now();
-      
+
       // If the month is in the future, it's not overdue
       if (monthDate.year > now.year) return false;
-      if (monthDate.year == now.year && monthDate.month > now.month) return false;
+      if (monthDate.year == now.year && monthDate.month > now.month)
+        return false;
 
       // If it's the current month
       if (monthDate.year == now.year && monthDate.month == now.month) {
@@ -200,5 +203,51 @@ class User {
     } catch (e) {
       return false;
     }
+  }
+
+  bool isPaidForMonth(DateTime date) {
+    if (serviceStartDate == null) return false;
+
+    // If service starts after the target date, it's considered "paid" (not liable)
+    // But for the purpose of "upcoming revenue", we probably only care if they are active.
+    // Let's stick to strict payment check: Is there a payment record for this month?
+
+    final key = "${date.year}-${date.month.toString().padLeft(2, '0')}";
+    return payments.containsKey(key);
+  }
+
+  bool get isPaymentDue {
+    final now = DateTime.now();
+    final currentMonthKey =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}";
+
+    if (payments.containsKey(currentMonthKey))
+      return false; // If already paid, not due
+
+    if (serviceStartDate != null) {
+      final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
+      final currentMonth = DateTime(now.year, now.month);
+      if (currentMonth.isBefore(start))
+        return false; // Service hasn't started for this month
+    }
+
+    return now.day >= paymentStartDay && now.day <= paymentEndDay;
+  }
+
+  bool get isPendingMonth {
+    final now = DateTime.now();
+    // Check if active
+    if (serviceStartDate != null) {
+      final start = DateTime(serviceStartDate!.year, serviceStartDate!.month);
+      final currentMonth = DateTime(now.year, now.month);
+      if (currentMonth.isBefore(start)) return false;
+    }
+
+    return !isPaidForMonth(now);
+  }
+
+  bool get isSolvent {
+    if (serviceStartDate == null) return false;
+    return !isPaymentDue && overdueMonths == 0 && !isPendingMonth;
   }
 }

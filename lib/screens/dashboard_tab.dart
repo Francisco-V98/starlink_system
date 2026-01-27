@@ -34,37 +34,32 @@ class _DashboardTabState extends State<DashboardTab> {
     });
   }
 
-  bool _isPaymentDue(User user) {
-    final now = DateTime.now();
-    final currentMonthKey = "${now.year}-${now.month.toString().padLeft(2, '0')}";
-    
-    // If already paid, not due
-    if (user.payments.containsKey(currentMonthKey)) return false;
-    
-    // Check if service has started
-    if (user.serviceStartDate != null) {
-      final start = DateTime(user.serviceStartDate!.year, user.serviceStartDate!.month);
-      final currentMonth = DateTime(now.year, now.month);
-      if (currentMonth.isBefore(start)) return false;
-    }
-
-    // Check if in payment window
-    return now.day >= user.paymentStartDay && now.day <= user.paymentEndDay;
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DataProvider>(context);
     final data = provider.filteredData;
-    
+
     // Calculate statistics
     final totalEmails = data.length;
-    final totalUsers = data.fold<int>(0, (sum, group) => sum + group.users.length);
+    final totalUsers = data.fold<int>(
+      0,
+      (sum, group) => sum + group.users.length,
+    );
     final totalOverdueUsers = data.fold<int>(0, (sum, group) {
       return sum + group.users.where((u) => u.overdueMonths > 0).length;
     });
     final totalPaymentDueUsers = data.fold<int>(0, (sum, group) {
-      return sum + group.users.where(_isPaymentDue).length;
+      return sum + group.users.where((u) => u.isPaymentDue).length;
+    });
+
+    // Purple Stat: Total users who haven't paid current month
+    final totalPendingMonthUsers = data.fold<int>(0, (sum, group) {
+      return sum + group.users.where((u) => u.isPendingMonth).length;
+    });
+
+    // Solvente Stat: Total users with no issues
+    final totalSolventUsers = data.fold<int>(0, (sum, group) {
+      return sum + group.users.where((u) => u.isSolvent).length;
     });
 
     return Column(
@@ -77,6 +72,11 @@ class _DashboardTabState extends State<DashboardTab> {
             decoration: InputDecoration(
               hintText: 'Buscar por correo, nombre o ubicación...',
               prefixIcon: const Icon(LucideIcons.search, color: Colors.grey),
+              suffixIcon: IconButton(
+                onPressed: () => _showFilterDialog(context),
+                icon: const Icon(LucideIcons.filter, color: Colors.blue),
+                tooltip: 'Filtrar',
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300),
@@ -93,27 +93,42 @@ class _DashboardTabState extends State<DashboardTab> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200),
-            ),
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Row(
             children: [
               OutlinedButton.icon(
                 onPressed: () => _toggleAll(data),
                 icon: Icon(
-                  _allExpanded ? LucideIcons.chevronsUp : LucideIcons.chevronsDown,
+                  _allExpanded
+                      ? LucideIcons.chevronsUp
+                      : LucideIcons.chevronsDown,
                   size: 16,
                 ),
                 label: Text(_allExpanded ? 'Colapsar todo' : 'Expandir todo'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   textStyle: const TextStyle(fontSize: 13),
                 ),
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () => _showLegend(context),
+                icon: const Icon(
+                  LucideIcons.helpCircle,
+                  color: Colors.blueGrey,
+                ),
+                tooltip: 'Ver leyenda de estados',
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(20),
@@ -122,7 +137,11 @@ class _DashboardTabState extends State<DashboardTab> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(LucideIcons.mail, size: 14, color: Colors.blue.shade700),
+                    Icon(
+                      LucideIcons.mail,
+                      size: 14,
+                      color: Colors.blue.shade700,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '$totalEmails',
@@ -135,7 +154,11 @@ class _DashboardTabState extends State<DashboardTab> {
                     const SizedBox(width: 8),
                     Text('•', style: TextStyle(color: Colors.blue.shade300)),
                     const SizedBox(width: 8),
-                    Icon(LucideIcons.users, size: 14, color: Colors.blue.shade700),
+                    Icon(
+                      LucideIcons.users,
+                      size: 14,
+                      color: Colors.blue.shade700,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '$totalUsers',
@@ -149,7 +172,11 @@ class _DashboardTabState extends State<DashboardTab> {
                       const SizedBox(width: 8),
                       Text('•', style: TextStyle(color: Colors.blue.shade300)),
                       const SizedBox(width: 8),
-                      const Icon(LucideIcons.clock, size: 14, color: Colors.orange),
+                      const Icon(
+                        LucideIcons.clock,
+                        size: 14,
+                        color: Colors.orange,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '$totalPaymentDueUsers',
@@ -164,13 +191,55 @@ class _DashboardTabState extends State<DashboardTab> {
                       const SizedBox(width: 8),
                       Text('•', style: TextStyle(color: Colors.blue.shade300)),
                       const SizedBox(width: 8),
-                      const Icon(LucideIcons.alertCircle, size: 14, color: Colors.red),
+                      const Icon(
+                        LucideIcons.alertCircle,
+                        size: 14,
+                        color: Colors.red,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '$totalOverdueUsers',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.red,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    if (totalPendingMonthUsers > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        LucideIcons.calendar,
+                        size: 14,
+                        color: Colors.purple,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$totalPendingMonthUsers',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    if (totalSolventUsers > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        LucideIcons.checkCircle,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$totalSolventUsers',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
                           fontSize: 13,
                         ),
                       ),
@@ -187,21 +256,196 @@ class _DashboardTabState extends State<DashboardTab> {
           child: provider.isLoading
               ? const Center(child: CircularProgressIndicator())
               : data.isEmpty
-                  ? const Center(child: Text('No se encontraron resultados'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: data.length,
-                      itemBuilder: (context, index) {
-                        final group = data[index];
-                        final isExpanded = _expandedGroups[group.email] ?? false;
-                        return _ClientGroupCard(
-                          group: group,
-                          isExpanded: isExpanded,
-                          onToggle: () => _toggleGroup(group.email),
-                          isPaymentDue: _isPaymentDue,
-                        );
-                      },
-                    ),
+              ? const Center(child: Text('No se encontraron resultados'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: data.length,
+                  itemBuilder: (context, index) {
+                    final group = data[index];
+                    final isExpanded = _expandedGroups[group.email] ?? false;
+                    return _ClientGroupCard(
+                      group: group,
+                      isExpanded: isExpanded,
+                      onToggle: () => _toggleGroup(group.email),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final provider = Provider.of<DataProvider>(context);
+        return AlertDialog(
+          title: const Text('Filtrar Usuarios'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Estado',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                _buildFilterCheckbox(
+                  'Solvente',
+                  provider.selectedStatusFilters.contains('Solvente'),
+                  (val) => provider.toggleStatusFilter('Solvente'),
+                ),
+                _buildFilterCheckbox(
+                  'Mes por pagar',
+                  provider.selectedStatusFilters.contains('Mes por pagar'),
+                  (val) => provider.toggleStatusFilter('Mes por pagar'),
+                ),
+                _buildFilterCheckbox(
+                  'Pago pendiente',
+                  provider.selectedStatusFilters.contains('Pago pendiente'),
+                  (val) => provider.toggleStatusFilter('Pago pendiente'),
+                ),
+                _buildFilterCheckbox(
+                  'Moroso',
+                  provider.selectedStatusFilters.contains('Moroso'),
+                  (val) => provider.toggleStatusFilter('Moroso'),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Plan',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                _buildFilterCheckbox(
+                  'Ilimitado',
+                  provider.selectedPlanFilters.contains('Ilimitado'),
+                  (val) => provider.togglePlanFilter('Ilimitado'),
+                ),
+                _buildFilterCheckbox(
+                  '50GB',
+                  provider.selectedPlanFilters.contains('50GB'),
+                  (val) => provider.togglePlanFilter('50GB'),
+                ),
+                // Add more plans if needed
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                provider.clearFilters();
+                // Navigator.pop(context); // Optional: close on clear? better to keep open
+              },
+              child: const Text(
+                'Limpiar Filtros',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Aplicar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterCheckbox(
+    String title,
+    bool value,
+    Function(bool?) onChanged,
+  ) {
+    return CheckboxListTile(
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      value: value,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      controlAffinity: ListTileControlAffinity.leading,
+    );
+  }
+
+  void _showLegend(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leyenda de Estados'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildLegendItem(
+              LucideIcons.checkCircle,
+              Colors.green,
+              'Solvente',
+              'Usuario al día, sin deudas ni pagos pendientes.',
+            ),
+            const SizedBox(height: 12),
+            _buildLegendItem(
+              LucideIcons.calendar,
+              Colors.purple,
+              'Mes por pagar',
+              'Mes en curso pendiente. Aún no ha llegado a su fecha de corte.',
+            ),
+            const SizedBox(height: 12),
+            _buildLegendItem(
+              LucideIcons.clock,
+              Colors.orange,
+              'Pago pendiente',
+              'Actualmente en su periodo de pago (fecha de corte activa).',
+            ),
+            const SizedBox(height: 12),
+            _buildLegendItem(
+              LucideIcons.alertCircle,
+              Colors.red,
+              'Moroso',
+              'Tiene uno o más meses vencidos sin pagar.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(
+    IconData icon,
+    Color color,
+    String title,
+    String description,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -212,19 +456,23 @@ class _ClientGroupCard extends StatelessWidget {
   final ClientGroup group;
   final bool isExpanded;
   final VoidCallback onToggle;
-  final bool Function(User) isPaymentDue;
-
   const _ClientGroupCard({
     required this.group,
     required this.isExpanded,
     required this.onToggle,
-    required this.isPaymentDue,
   });
 
   @override
   Widget build(BuildContext context) {
     final overdueCount = group.users.where((u) => u.overdueMonths > 0).length;
-    final paymentDueCount = group.users.where(isPaymentDue).length;
+    final paymentDueCount = group.users.where((u) => u.isPaymentDue).length;
+
+    final pendingMonthCount = group.users
+        .where(
+          (u) => u.isPendingMonth && u.overdueMonths == 0 && !u.isPaymentDue,
+        )
+        .length;
+    final solventCount = group.users.where((u) => u.isSolvent).length;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -266,7 +514,9 @@ class _ClientGroupCard extends StatelessWidget {
                         ),
                       ),
                       Icon(
-                        isExpanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                        isExpanded
+                            ? LucideIcons.chevronUp
+                            : LucideIcons.chevronDown,
                         size: 20,
                         color: Colors.grey.shade600,
                       ),
@@ -277,7 +527,10 @@ class _ClientGroupCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade600,
                           borderRadius: BorderRadius.circular(20),
@@ -292,7 +545,11 @@ class _ClientGroupCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(LucideIcons.users, color: Colors.white, size: 16),
+                            const Icon(
+                              LucideIcons.users,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               '${group.users.length} usuario${group.users.length != 1 ? 's' : ''}',
@@ -308,7 +565,10 @@ class _ClientGroupCard extends StatelessWidget {
                       if (paymentDueCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange.shade600,
                             borderRadius: BorderRadius.circular(20),
@@ -323,7 +583,11 @@ class _ClientGroupCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(LucideIcons.clock, color: Colors.white, size: 16),
+                              const Icon(
+                                LucideIcons.clock,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '$paymentDueCount por pagar',
@@ -340,7 +604,10 @@ class _ClientGroupCard extends StatelessWidget {
                       if (overdueCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red.shade600,
                             borderRadius: BorderRadius.circular(20),
@@ -355,10 +622,92 @@ class _ClientGroupCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(LucideIcons.alertCircle, color: Colors.white, size: 16),
+                              const Icon(
+                                LucideIcons.alertCircle,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '$overdueCount moroso${overdueCount != 1 ? 's' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (pendingMonthCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade600,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.purple.shade200,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.calendar,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$pendingMonthCount', // Just the count
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (solventCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade600,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.green.shade200,
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.checkCircle,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$solventCount',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   color: Colors.white,
@@ -392,11 +741,7 @@ class _ClientGroupCard extends StatelessWidget {
           if (isExpanded)
             Column(
               children: group.users.map((user) {
-                return _UserListTile(
-                  email: group.email,
-                  user: user,
-                  isPaymentDue: isPaymentDue(user),
-                );
+                return _UserListTile(email: group.email, user: user);
               }).toList(),
             ),
         ],
@@ -408,17 +753,22 @@ class _ClientGroupCard extends StatelessWidget {
 class _UserListTile extends StatelessWidget {
   final String email;
   final User user;
-  final bool isPaymentDue;
 
-  const _UserListTile({
-    required this.email,
-    required this.user,
-    required this.isPaymentDue,
-  });
+  const _UserListTile({required this.email, required this.user});
 
   static const List<String> months = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   Future<void> _launchWhatsApp(BuildContext context) async {
@@ -439,37 +789,44 @@ class _UserListTile extends StatelessWidget {
     }
 
     if (user.serviceStartDate != null) {
-      final start = DateTime(user.serviceStartDate!.year, user.serviceStartDate!.month);
+      final start = DateTime(
+        user.serviceStartDate!.year,
+        user.serviceStartDate!.month,
+      );
       while (iterator.isAfter(start) || iterator.isAtSameMomentAs(start)) {
-         final key = "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
-         if (user.payments.containsKey(key)) {
-           break;
-         }
-         overdueMonthsList.add("${months[iterator.month - 1]} ${iterator.year}");
-         iterator = DateTime(iterator.year, iterator.month - 1);
+        final key =
+            "${iterator.year}-${iterator.month.toString().padLeft(2, '0')}";
+        if (user.payments.containsKey(key)) {
+          break;
+        }
+        overdueMonthsList.add("${months[iterator.month - 1]} ${iterator.year}");
+        iterator = DateTime(iterator.year, iterator.month - 1);
       }
     }
 
     // Add current month if payment due
-    if (isPaymentDue) {
-       // Check if already in list (could happen if logic overlaps, though shouldn't with correct logic)
-       final currentMonthStr = "${months[now.month - 1]} ${now.year}";
-       if (!overdueMonthsList.contains(currentMonthStr)) {
-          overdueMonthsList.insert(0, currentMonthStr);
-       }
+    if (user.isPaymentDue) {
+      // Check if already in list (could happen if logic overlaps, though shouldn't with correct logic)
+      final currentMonthStr = "${months[now.month - 1]} ${now.year}";
+      if (!overdueMonthsList.contains(currentMonthStr)) {
+        overdueMonthsList.insert(0, currentMonthStr);
+      }
     }
 
     if (overdueMonthsList.isEmpty) return;
 
-    final message = "Hola *${user.name}* 👋,\n\n"
+    final message =
+        "Hola *${user.name}* 👋,\n\n"
         "Le recordamos que su fecha de corte es del *${user.paymentStartDay} al ${user.paymentEndDay}* de cada mes.\n\n"
         "Actualmente presenta los siguientes pagos pendientes:\n"
         "${overdueMonthsList.map((m) => "• $m").join("\n")}\n\n"
         "Por favor, realice su pago a la brevedad para mantener su servicio activo.\n\n"
         "Gracias por su preferencia.";
 
-    final url = Uri.parse("https://wa.me/${user.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}?text=${Uri.encodeComponent(message)}");
-    
+    final url = Uri.parse(
+      "https://wa.me/${user.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}?text=${Uri.encodeComponent(message)}",
+    );
+
     try {
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         if (context.mounted) {
@@ -480,9 +837,9 @@ class _UserListTile extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al abrir WhatsApp: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al abrir WhatsApp: $e')));
       }
     }
   }
@@ -492,7 +849,9 @@ class _UserListTile extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sin número de teléfono'),
-        content: const Text('Este usuario no tiene un número de teléfono registrado.'),
+        content: const Text(
+          'Este usuario no tiene un número de teléfono registrado.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -503,7 +862,10 @@ class _UserListTile extends StatelessWidget {
               Navigator.pop(ctx);
               _showEditDialog(context);
             },
-            child: const Text('Agregar número', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Agregar número',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -515,12 +877,12 @@ class _UserListTile extends StatelessWidget {
     // Try to parse existing phone number
     String initialPhone = user.phoneNumber;
     Country selectedCountry = Country.parse('VE');
-    
+
     // Simple heuristic: if starts with +, try to find country
     // For now, we'll just assume if it doesn't match our format, we leave it as is in the controller
     // but default the picker to VE.
     // Ideally we would parse it.
-    
+
     final phoneController = TextEditingController(text: initialPhone);
     final serialController = TextEditingController(text: user.antennaSerial);
     final countryController = TextEditingController(text: user.country);
@@ -606,7 +968,10 @@ class _UserListTile extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Ilimitado', child: Text('Ilimitado')),
+                    DropdownMenuItem(
+                      value: 'Ilimitado',
+                      child: Text('Ilimitado'),
+                    ),
                     DropdownMenuItem(value: '50gb', child: Text('50 GB')),
                   ],
                   onChanged: (value) {
@@ -625,8 +990,13 @@ class _UserListTile extends StatelessWidget {
                           labelText: 'Día Inicio',
                           border: OutlineInputBorder(),
                         ),
-                        items: List.generate(31, (index) => index + 1).map((day) {
-                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        items: List.generate(31, (index) => index + 1).map((
+                          day,
+                        ) {
+                          return DropdownMenuItem(
+                            value: day,
+                            child: Text(day.toString()),
+                          );
                         }).toList(),
                         onChanged: (value) {
                           setDialogState(() {
@@ -646,8 +1016,13 @@ class _UserListTile extends StatelessWidget {
                           labelText: 'Día Fin',
                           border: OutlineInputBorder(),
                         ),
-                        items: List.generate(31, (index) => index + 1).map((day) {
-                          return DropdownMenuItem(value: day, child: Text(day.toString()));
+                        items: List.generate(31, (index) => index + 1).map((
+                          day,
+                        ) {
+                          return DropdownMenuItem(
+                            value: day,
+                            child: Text(day.toString()),
+                          );
                         }).toList(),
                         onChanged: (value) {
                           setDialogState(() {
@@ -677,10 +1052,10 @@ class _UserListTile extends StatelessWidget {
               // So if the original was "+58 412...", the input will show "58412..." (digits only).
               // This is tricky for editing existing data.
               // Ideally we should strip the country code from the initial value if it matches.
-              
+
               String finalPhone = phoneController.text;
               if (finalPhone.isNotEmpty) {
-                 finalPhone = '+${selectedCountry.phoneCode} $finalPhone';
+                finalPhone = '+${selectedCountry.phoneCode} $finalPhone';
               }
 
               Provider.of<DataProvider>(context, listen: false).updateUser(
@@ -702,7 +1077,10 @@ class _UserListTile extends StatelessWidget {
                 ),
               );
             },
-            child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Guardar',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -718,19 +1096,14 @@ class _UserListTile extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => UserDetailScreen(
-              email: email,
-              user: user,
-            ),
+            builder: (context) => UserDetailScreen(email: email, user: user),
           ),
         );
       },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade100),
-          ),
+          border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
         ),
         child: Row(
           children: [
@@ -749,11 +1122,37 @@ class _UserListTile extends StatelessWidget {
                       ),
                       if (overdueMonths > 0) ...[
                         const SizedBox(width: 8),
-                        const Icon(LucideIcons.alertCircle, color: Colors.red, size: 16),
+                        const Icon(
+                          LucideIcons.alertCircle,
+                          color: Colors.red,
+                          size: 16,
+                        ),
                       ],
-                      if (isPaymentDue && overdueMonths == 0) ...[
-                         const SizedBox(width: 8),
-                         const Icon(LucideIcons.clock, color: Colors.orange, size: 16),
+                      if (user.isPaymentDue) ...[
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.clock,
+                          color: Colors.orange,
+                          size: 16,
+                        ),
+                      ],
+                      if (user.isPendingMonth) ...[
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.calendar,
+                          color: Colors.purple,
+                          size: 16,
+                        ),
+                      ],
+                      if (overdueMonths == 0 &&
+                          !user.isPaymentDue &&
+                          !user.isPendingMonth) ...[
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.checkCircle,
+                          color: Colors.green,
+                          size: 16,
+                        ),
                       ],
                     ],
                   ),
@@ -761,26 +1160,40 @@ class _UserListTile extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: user.plan == 'Ilimitado' ? Colors.purple.shade50 : Colors.teal.shade50,
+                          color: user.plan == 'Ilimitado'
+                              ? Colors.purple.shade50
+                              : Colors.teal.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           user.plan,
                           style: TextStyle(
-                            color: user.plan == 'Ilimitado' ? Colors.purple : Colors.teal,
+                            color: user.plan == 'Ilimitado'
+                                ? Colors.purple
+                                : Colors.teal,
                             fontWeight: FontWeight.bold,
                             fontSize: 11,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(LucideIcons.calendar, size: 12, color: Colors.grey.shade600),
+                      Icon(
+                        LucideIcons.calendar,
+                        size: 12,
+                        color: Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         user.range,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       if (overdueMonths > 0) ...[
                         const SizedBox(width: 8),
@@ -792,7 +1205,8 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ] else if (isPaymentDue) ...[
+                      ],
+                      if (user.isPaymentDue) ...[
                         const SizedBox(width: 8),
                         const Text(
                           'Pago pendiente',
@@ -803,12 +1217,39 @@ class _UserListTile extends StatelessWidget {
                           ),
                         ),
                       ],
+                      if (user.isPendingMonth) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Mes por pagar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.purple,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                      if (overdueMonths == 0 &&
+                          !user.isPaymentDue &&
+                          !user.isPendingMonth) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Solvente',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   if (user.note != null && user.note!.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
                         borderRadius: BorderRadius.circular(4),
@@ -826,11 +1267,14 @@ class _UserListTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (overdueMonths > 0 || isPaymentDue) ...[
+            if (overdueMonths > 0 || user.isPaymentDue) ...[
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () => _launchWhatsApp(context),
-                icon: const Icon(LucideIcons.messageCircle, color: Colors.green),
+                icon: const Icon(
+                  LucideIcons.messageCircle,
+                  color: Colors.green,
+                ),
                 tooltip: 'Enviar WhatsApp',
               ),
             ],
