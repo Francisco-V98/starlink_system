@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../models/client_model.dart';
@@ -9,6 +10,7 @@ class DataProvider extends ChangeNotifier {
   String _searchTerm = '';
   bool _isLoading = true;
   String? _currentUserId;
+  StreamSubscription? _subscription;
 
   List<String> _selectedStatusFilters = [];
   List<String> _selectedPlanFilters = [];
@@ -130,6 +132,7 @@ class DataProvider extends ChangeNotifier {
         _currentUserId = null;
         _data = [];
         _isLoading = false;
+        _subscription?.cancel();
         notifyListeners();
       }
     });
@@ -139,7 +142,8 @@ class DataProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _firestoreService
+    _subscription?.cancel();
+    _subscription = _firestoreService
         .getClientGroups(userId)
         .listen(
           (groups) {
@@ -153,6 +157,20 @@ class DataProvider extends ChangeNotifier {
             notifyListeners();
           },
         );
+  }
+
+  Future<void> refresh() async {
+    if (_currentUserId != null) {
+      _initData(_currentUserId!);
+      // Init data is async in terms of stream but returns void.
+      // We can await a bit or just let the loading state handle it.
+      // Since _initData sets _isLoading = true, the UI will show loading.
+      // But RefreshIndicator expects a Future.
+      // We can wait for the first data emission?
+      // For now, let's just wait a small delay to simulate, or rely on _initData.
+      // Actually, since it's a stream, "refresh" just means restarting the listener.
+      await Future.delayed(const Duration(seconds: 1));
+    }
   }
 
   void setSearchTerm(String term) {

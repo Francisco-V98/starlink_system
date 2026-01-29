@@ -39,7 +39,6 @@
     }
   },
   "hosting": {
-    "site": "vdv-panel-app",
     "public": "build/web",
     "ignore": [
       "firebase.json",

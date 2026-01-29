@@ -95,156 +95,178 @@ class _DashboardTabState extends State<DashboardTab> {
             color: Colors.grey.shade50,
             border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              OutlinedButton.icon(
-                onPressed: () => _toggleAll(data),
-                icon: Icon(
-                  _allExpanded
-                      ? LucideIcons.chevronsUp
-                      : LucideIcons.chevronsDown,
-                  size: 16,
-                ),
-                label: Text(_allExpanded ? 'Colapsar todo' : 'Expandir todo'),
-                style: OutlinedButton.styleFrom(
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _toggleAll(data),
+                    icon: Icon(
+                      _allExpanded
+                          ? LucideIcons.chevronsUp
+                          : LucideIcons.chevronsDown,
+                      size: 16,
+                    ),
+                    label: Text(
+                      _allExpanded ? 'Colapsar todo' : 'Expandir todo',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      textStyle: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _showLegend(context),
+                    icon: const Icon(
+                      LucideIcons.helpCircle,
+                      color: Colors.blueGrey,
+                    ),
+                    tooltip: 'Ver leyenda de estados',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 6,
                   ),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: () => _showLegend(context),
-                icon: const Icon(
-                  LucideIcons.helpCircle,
-                  color: Colors.blueGrey,
-                ),
-                tooltip: 'Ver leyenda de estados',
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      LucideIcons.mail,
-                      size: 14,
-                      color: Colors.blue.shade700,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$totalEmails',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('•', style: TextStyle(color: Colors.blue.shade300)),
-                    const SizedBox(width: 8),
-                    Icon(
-                      LucideIcons.users,
-                      size: 14,
-                      color: Colors.blue.shade700,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$totalUsers',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (totalPaymentDueUsers > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.clock,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        LucideIcons.mail,
                         size: 14,
-                        color: Colors.orange,
+                        color: Colors.blue.shade700,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '$totalPaymentDueUsers',
-                        style: const TextStyle(
+                        '$totalEmails',
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
+                      const SizedBox(width: 8),
+                      Icon(
+                        LucideIcons.users,
+                        size: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$totalUsers',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (totalPaymentDueUsers > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '•',
+                          style: TextStyle(color: Colors.blue.shade300),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.clock,
+                          size: 14,
                           color: Colors.orange,
-                          fontSize: 13,
                         ),
-                      ),
-                    ],
-                    if (totalOverdueUsers > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.alertCircle,
-                        size: 14,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$totalOverdueUsers',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 4),
+                        Text(
+                          '$totalPaymentDueUsers',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      if (totalOverdueUsers > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '•',
+                          style: TextStyle(color: Colors.blue.shade300),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.alertCircle,
+                          size: 14,
                           color: Colors.red,
-                          fontSize: 13,
                         ),
-                      ),
-                    ],
-                    if (totalPendingMonthUsers > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.calendar,
-                        size: 14,
-                        color: Colors.purple,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$totalPendingMonthUsers',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 4),
+                        Text(
+                          '$totalOverdueUsers',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      if (totalPendingMonthUsers > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '•',
+                          style: TextStyle(color: Colors.blue.shade300),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.calendar,
+                          size: 14,
                           color: Colors.purple,
-                          fontSize: 13,
                         ),
-                      ),
-                    ],
-                    if (totalSolventUsers > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('•', style: TextStyle(color: Colors.blue.shade300)),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        LucideIcons.checkCircle,
-                        size: 14,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$totalSolventUsers',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 4),
+                        Text(
+                          '$totalPendingMonthUsers',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      if (totalSolventUsers > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '•',
+                          style: TextStyle(color: Colors.blue.shade300),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          LucideIcons.checkCircle,
+                          size: 14,
                           color: Colors.green,
-                          fontSize: 13,
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$totalSolventUsers',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -255,20 +277,33 @@ class _DashboardTabState extends State<DashboardTab> {
         Expanded(
           child: provider.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : data.isEmpty
-              ? const Center(child: Text('No se encontraron resultados'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: data.length,
-                  itemBuilder: (context, index) {
-                    final group = data[index];
-                    final isExpanded = _expandedGroups[group.email] ?? false;
-                    return _ClientGroupCard(
-                      group: group,
-                      isExpanded: isExpanded,
-                      onToggle: () => _toggleGroup(group.email),
-                    );
-                  },
+              : RefreshIndicator(
+                  onRefresh: () => provider.refresh(),
+                  child: data.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.7,
+                            child: const Center(
+                              child: Text('No se encontraron resultados'),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: data.length,
+                          itemBuilder: (context, index) {
+                            final group = data[index];
+                            final isExpanded =
+                                _expandedGroups[group.email] ?? false;
+                            return _ClientGroupCard(
+                              group: group,
+                              isExpanded: isExpanded,
+                              onToggle: () => _toggleGroup(group.email),
+                            );
+                          },
+                        ),
                 ),
         ),
       ],
@@ -467,11 +502,7 @@ class _ClientGroupCard extends StatelessWidget {
     final overdueCount = group.users.where((u) => u.overdueMonths > 0).length;
     final paymentDueCount = group.users.where((u) => u.isPaymentDue).length;
 
-    final pendingMonthCount = group.users
-        .where(
-          (u) => u.isPendingMonth && u.overdueMonths == 0 && !u.isPaymentDue,
-        )
-        .length;
+    final pendingMonthCount = group.users.where((u) => u.isPendingMonth).length;
     final solventCount = group.users.where((u) => u.isSolvent).length;
 
     return Card(
@@ -523,8 +554,11 @@ class _ClientGroupCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -562,8 +596,7 @@ class _ClientGroupCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (paymentDueCount > 0) ...[
-                        const SizedBox(width: 8),
+                      if (paymentDueCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -600,9 +633,7 @@ class _ClientGroupCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ],
-                      if (overdueCount > 0) ...[
-                        const SizedBox(width: 8),
+                      if (overdueCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -639,9 +670,7 @@ class _ClientGroupCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ],
-                      if (pendingMonthCount > 0) ...[
-                        const SizedBox(width: 8),
+                      if (pendingMonthCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -678,9 +707,7 @@ class _ClientGroupCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ],
-                      if (solventCount > 0) ...[
-                        const SizedBox(width: 8),
+                      if (solventCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -717,7 +744,6 @@ class _ClientGroupCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      ],
                     ],
                   ),
                   if (group.alias.isNotEmpty) ...[
@@ -1157,7 +1183,11 @@ class _UserListTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -1181,22 +1211,25 @@ class _UserListTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        LucideIcons.calendar,
-                        size: 12,
-                        color: Colors.grey.shade600,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.calendar,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            user.range,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        user.range,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (overdueMonths > 0) ...[
-                        const SizedBox(width: 8),
+                      if (overdueMonths > 0)
                         Text(
                           '$overdueMonths mes${overdueMonths != 1 ? 'es' : ''} de retraso',
                           style: const TextStyle(
@@ -1205,9 +1238,7 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                      if (user.isPaymentDue) ...[
-                        const SizedBox(width: 8),
+                      if (user.isPaymentDue)
                         const Text(
                           'Pago pendiente',
                           style: TextStyle(
@@ -1216,9 +1247,7 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                      if (user.isPendingMonth) ...[
-                        const SizedBox(width: 8),
+                      if (user.isPendingMonth)
                         const Text(
                           'Mes por pagar',
                           style: TextStyle(
@@ -1227,11 +1256,9 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
                       if (overdueMonths == 0 &&
                           !user.isPaymentDue &&
-                          !user.isPendingMonth) ...[
-                        const SizedBox(width: 8),
+                          !user.isPendingMonth)
                         const Text(
                           'Solvente',
                           style: TextStyle(
@@ -1240,7 +1267,6 @@ class _UserListTile extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
                     ],
                   ),
                   if (user.note != null && user.note!.isNotEmpty)

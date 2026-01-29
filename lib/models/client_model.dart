@@ -206,14 +206,15 @@ class User {
   }
 
   bool isPaidForMonth(DateTime date) {
+    final key = "${date.year}-${date.month.toString().padLeft(2, '0')}";
+    if (payments.containsKey(key)) return true;
+
     if (serviceStartDate == null) return false;
 
     // If service starts after the target date, it's considered "paid" (not liable)
     // But for the purpose of "upcoming revenue", we probably only care if they are active.
     // Let's stick to strict payment check: Is there a payment record for this month?
-
-    final key = "${date.year}-${date.month.toString().padLeft(2, '0')}";
-    return payments.containsKey(key);
+    return false;
   }
 
   bool get isPaymentDue {
@@ -247,7 +248,6 @@ class User {
   }
 
   bool get isSolvent {
-    if (serviceStartDate == null) return false;
     return !isPaymentDue && overdueMonths == 0 && !isPendingMonth;
   }
 }
